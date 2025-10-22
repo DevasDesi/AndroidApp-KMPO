@@ -64,6 +64,7 @@
 
             <!-- Просроченные заказы -->
             <LinearLayout
+                android:id="@+id/overdueBadge"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -84,18 +85,19 @@
                     android:layout_marginBottom="8dp" />
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="101dp"
+                    android:layout_height="31dp"
+                    android:gravity="center"
+                    android:maxLines="2"
                     android:text="Просроченные заказы"
                     android:textColor="#64748b"
-                    android:textSize="12sp"
-                    android:gravity="center"
-                    android:maxLines="2" />
+                    android:textSize="12sp" />
 
             </LinearLayout>
 
             <!-- Критический остаток -->
             <LinearLayout
+                android:id="@+id/criticalBadge"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -116,18 +118,19 @@
                     android:layout_marginBottom="8dp" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="97dp"
                     android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:maxLines="2"
                     android:text="Критический остаток"
                     android:textColor="#64748b"
-                    android:textSize="12sp"
-                    android:gravity="center"
-                    android:maxLines="2" />
+                    android:textSize="12sp" />
 
             </LinearLayout>
 
             <!-- Ожидают обработки -->
             <LinearLayout
+                android:id="@+id/pendingBadge"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -229,6 +232,7 @@
                 android:layout_marginBottom="16dp">
 
                 <TextView
+                    android:id="@+id/sectionTitle"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
