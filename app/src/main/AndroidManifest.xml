@@ -36,5 +36,12 @@
             android:label="Редактирование заказа"
             android:parentActivityName=".OrderDetailActivity" />
 
+        <!-- ДОБАВЬТЕ ЭТУ ACTIVITY -->
+        <activity
+            android:name=".ProductsActivity"
+            android:label="Управление товарами"
+            android:parentActivityName=".DashboardActivity"
+            android:exported="false" />
+
     </application>
 </manifest>

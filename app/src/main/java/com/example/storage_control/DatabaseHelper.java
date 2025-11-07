@@ -352,6 +352,63 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.query(TABLE_PRODUCTS, null, selection, selectionArgs, null, null, null);
     }
 
+    public int getLowStockCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT COUNT(*) FROM " + TABLE_PRODUCTS + " WHERE " +
+                COLUMN_STOCK_QUANTITY + " > 0 AND " +
+                COLUMN_STOCK_QUANTITY + " <= " + COLUMN_MIN_STOCK;
+        Cursor cursor = db.rawQuery(query, null);
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+        return count;
+    }
+
+    // Получить общее количество товаров
+    public int getTotalProductsCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT COUNT(*) FROM " + TABLE_PRODUCTS;
+        Cursor cursor = db.rawQuery(query, null);
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+        return count;
+    }
+
+    // Получить товары с низким остатком
+    public Cursor getLowStockProducts() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String selection = COLUMN_STOCK_QUANTITY + " > 0 AND " +
+                COLUMN_STOCK_QUANTITY + " <= " + COLUMN_MIN_STOCK;
+        return db.query(TABLE_PRODUCTS, null, selection, null, null, null, COLUMN_STOCK_QUANTITY + " ASC");
+    }
+
+    public Cursor getProductBySku(String sku) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_PRODUCTS, null, "sku = ?", new String[]{sku}, null, null, null);
+    }
+
+    public boolean updateProduct(String sku, String name, double price, int stock, int minStock, String category, String description) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("product_name", name);
+        values.put("price", price);
+        values.put("stock_quantity", stock);
+        values.put("min_stock", minStock);
+        values.put("category", category);
+        values.put("description", description);
+
+        int rowsAffected = db.update(TABLE_PRODUCTS, values, "sku = ?", new String[]{sku});
+        return rowsAffected > 0;
+    }
+
+    public boolean deleteProduct(String sku) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rowsAffected = db.delete(TABLE_PRODUCTS, "sku = ?", new String[]{sku});
+        return rowsAffected > 0;
+    }
+
+
     // ==================== ОТЛАДОЧНЫЕ МЕТОДЫ ====================
 
     public String getAllUsersForDebug() {

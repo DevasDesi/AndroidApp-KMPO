@@ -24,6 +24,7 @@ public class ProductsActivity extends AppCompatActivity {
     private LinearLayout emptyProductsLayout, productsContainer;
     private Button addProductButton;
     private View navHome, navOrders, navProducts, navAnalytics, navSettings;
+    private LinearLayout criticalStockBadge, lowStockBadge, totalProductsBadge;
 
     private DatabaseHelper databaseHelper;
 
@@ -44,6 +45,11 @@ public class ProductsActivity extends AppCompatActivity {
         criticalStockCount = findViewById(R.id.criticalStockCount);
         lowStockCount = findViewById(R.id.lowStockCount);
         totalProductsCount = findViewById(R.id.totalProductsCount);
+
+        // Контейнеры бейджей для кликов
+        criticalStockBadge = findViewById(R.id.criticalStockBadge);
+        lowStockBadge = findViewById(R.id.lowStockBadge);
+        totalProductsBadge = findViewById(R.id.totalProductsBadge);
 
         // Табы
         tabAllProducts = findViewById(R.id.tabAllProducts);
@@ -73,6 +79,11 @@ public class ProductsActivity extends AppCompatActivity {
         tabCriticalStock.setOnClickListener(v -> switchTab("critical"));
         tabLowStock.setOnClickListener(v -> switchTab("low"));
         tabByCategory.setOnClickListener(v -> switchTab("category"));
+
+        // Бейджи (верхние кнопки)
+        criticalStockBadge.setOnClickListener(v -> switchTab("critical"));
+        lowStockBadge.setOnClickListener(v -> switchTab("low"));
+        totalProductsBadge.setOnClickListener(v -> switchTab("all"));
 
         // Кнопка добавления
         addProductButton.setOnClickListener(v -> showAddProductDialog());
@@ -117,6 +128,17 @@ public class ProductsActivity extends AppCompatActivity {
         }
     }
 
+    private int getTotalProductsCount() {
+        Cursor cursor = databaseHelper.getAllProducts();
+        int count = cursor.getCount();
+        cursor.close();
+        return count;
+    }
+
+
+
+
+
     private void resetTabs() {
         tabAllProducts.setBackgroundResource(R.drawable.tab_background);
         tabCriticalStock.setBackgroundResource(R.drawable.tab_background);
@@ -152,10 +174,14 @@ public class ProductsActivity extends AppCompatActivity {
     }
 
     private void updateBadgeCounts() {
-        // Здесь будут реальные данные из БД
-        criticalStockCount.setText("2");
-        lowStockCount.setText("3");
-        totalProductsCount.setText("15");
+        // Реальные данные из базы данных
+        int criticalCount = databaseHelper.getCriticalStockCount();
+        int lowCount = databaseHelper.getLowStockCount();
+        int totalCount = databaseHelper.getTotalProductsCount();
+
+        criticalStockCount.setText(String.valueOf(criticalCount));
+        lowStockCount.setText(String.valueOf(lowCount));
+        totalProductsCount.setText(String.valueOf(totalCount));
     }
 
     private void loadAllProducts() {
@@ -169,8 +195,7 @@ public class ProductsActivity extends AppCompatActivity {
     }
 
     private void loadLowStockProducts() {
-        // Нужно добавить метод в DatabaseHelper
-        Cursor cursor = databaseHelper.getAllProducts(); // временно
+        Cursor cursor = databaseHelper.getLowStockProducts();
         displayProducts(cursor);
     }
 
@@ -316,13 +341,219 @@ public class ProductsActivity extends AppCompatActivity {
         card.addView(detailsRow);
         card.addView(stockStatusView);
 
-        // Добавляем обработчик клика на карточку
+        // Сохраняем SKU товара в тег карточки для использования при клике
+        card.setTag(sku);
+
+        // Добавляем обработчик долгого нажатия для редактирования/удаления
+        card.setOnLongClickListener(v -> {
+            String productSku = (String) v.getTag();
+            showProductActionsDialog(productSku);
+            return true;
+        });
+
+        // Добавляем обработчик обычного клика для просмотра деталей
         card.setOnClickListener(v -> {
-            // Здесь можно добавить переход к редактированию товара
-            Toast.makeText(this, "Товар: " + productName, Toast.LENGTH_SHORT).show();
+            String productSku = (String) v.getTag();
+            showProductDetailsDialog(productSku);
         });
 
         return card;
+    }
+
+    private void showProductActionsDialog(String sku) {
+        String[] options = {"Редактировать", "Удалить", "Отмена"};
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Действия с товаром");
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0: // Редактировать
+                    showEditProductDialog(sku);
+                    break;
+                case 1: // Удалить
+                    showDeleteConfirmationDialog(sku);
+                    break;
+                case 2: // Отмена
+                    dialog.dismiss();
+                    break;
+            }
+        });
+        builder.show();
+    }
+
+    private void showProductDetailsDialog(String sku) {
+        Cursor cursor = databaseHelper.getProductBySku(sku);
+        if (cursor.moveToFirst()) {
+            String productName = cursor.getString(cursor.getColumnIndexOrThrow("product_name"));
+            double price = cursor.getDouble(cursor.getColumnIndexOrThrow("price"));
+            int stock = cursor.getInt(cursor.getColumnIndexOrThrow("stock_quantity"));
+            int minStock = cursor.getInt(cursor.getColumnIndexOrThrow("min_stock"));
+            String category = cursor.getString(cursor.getColumnIndexOrThrow("category"));
+            String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle(productName);
+
+            String details = "Артикул: " + sku + "\n\n" +
+                    "Категория: " + category + "\n\n" +
+                    "Цена: " + String.format(Locale.getDefault(), "%,d ₽", (int) price) + "\n\n" +
+                    "Остаток: " + stock + " шт.\n\n" +
+                    "Мин. запас: " + minStock + " шт.\n\n" +
+                    "Описание: " + (description.isEmpty() ? "нет" : description);
+
+            builder.setMessage(details);
+            builder.setPositiveButton("OK", null);
+            builder.show();
+        }
+        cursor.close();
+    }
+
+    private void showEditProductDialog(String sku) {
+        Cursor cursor = databaseHelper.getProductBySku(sku);
+        if (!cursor.moveToFirst()) {
+            Toast.makeText(this, "Товар не найден", Toast.LENGTH_SHORT).show();
+            cursor.close();
+            return;
+        }
+
+        String productName = cursor.getString(cursor.getColumnIndexOrThrow("product_name"));
+        double price = cursor.getDouble(cursor.getColumnIndexOrThrow("price"));
+        int stock = cursor.getInt(cursor.getColumnIndexOrThrow("stock_quantity"));
+        int minStock = cursor.getInt(cursor.getColumnIndexOrThrow("min_stock"));
+        String category = cursor.getString(cursor.getColumnIndexOrThrow("category"));
+        String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+
+        cursor.close();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Редактировать товар");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(32, 32, 32, 32);
+
+        // Название товара
+        final EditText nameInput = new EditText(this);
+        nameInput.setText(productName);
+        nameInput.setHint("Название товара *");
+        nameInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        nameInput.setPadding(16, 16, 16, 16);
+        layout.addView(nameInput);
+
+        // Категория
+        final EditText categoryInput = new EditText(this);
+        categoryInput.setText(category);
+        categoryInput.setHint("Категория");
+        categoryInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        categoryInput.setPadding(16, 16, 16, 16);
+        layout.addView(categoryInput);
+
+        // Цена
+        final EditText priceInput = new EditText(this);
+        priceInput.setText(String.valueOf(price));
+        priceInput.setHint("Цена *");
+        priceInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        priceInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        priceInput.setPadding(16, 16, 16, 16);
+        layout.addView(priceInput);
+
+        // Количество на складе
+        final EditText stockInput = new EditText(this);
+        stockInput.setText(String.valueOf(stock));
+        stockInput.setHint("Количество на складе *");
+        stockInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        stockInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        stockInput.setPadding(16, 16, 16, 16);
+        layout.addView(stockInput);
+
+        // Минимальный запас
+        final EditText minStockInput = new EditText(this);
+        minStockInput.setText(String.valueOf(minStock));
+        minStockInput.setHint("Минимальный запас");
+        minStockInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        minStockInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        minStockInput.setPadding(16, 16, 16, 16);
+        layout.addView(minStockInput);
+
+        // Описание
+        final EditText descriptionInput = new EditText(this);
+        descriptionInput.setText(description);
+        descriptionInput.setHint("Описание");
+        descriptionInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        descriptionInput.setPadding(16, 16, 16, 16);
+        descriptionInput.setMinLines(2);
+        layout.addView(descriptionInput);
+
+        // Добавляем отступы между полями
+        for (int i = 0; i < layout.getChildCount(); i++) {
+            if (i > 0) {
+                View child = layout.getChildAt(i);
+                LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) child.getLayoutParams();
+                params.topMargin = 12;
+                child.setLayoutParams(params);
+            }
+        }
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Сохранить", (dialog, which) -> {
+            String newName = nameInput.getText().toString().trim();
+            String newCategory = categoryInput.getText().toString().trim();
+            String newPriceStr = priceInput.getText().toString().trim();
+            String newStockStr = stockInput.getText().toString().trim();
+            String newMinStockStr = minStockInput.getText().toString().trim();
+            String newDescription = descriptionInput.getText().toString().trim();
+
+            if (newName.isEmpty() || newPriceStr.isEmpty() || newStockStr.isEmpty()) {
+                Toast.makeText(this, "Заполните обязательные поля (*)", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            try {
+                double newPrice = Double.parseDouble(newPriceStr);
+                int newStock = Integer.parseInt(newStockStr);
+                int newMinStock = newMinStockStr.isEmpty() ? Math.max(1, newStock / 4) : Integer.parseInt(newMinStockStr);
+
+                if (newCategory.isEmpty()) {
+                    newCategory = "Разное";
+                }
+
+                boolean success = databaseHelper.updateProduct(sku, newName, newPrice, newStock, newMinStock, newCategory, newDescription);
+                if (success) {
+                    Toast.makeText(this, "Товар обновлен", Toast.LENGTH_SHORT).show();
+                    // Обновляем список товаров
+                    loadAllProducts();
+                    updateBadgeCounts();
+                } else {
+                    Toast.makeText(this, "Ошибка при обновлении", Toast.LENGTH_SHORT).show();
+                }
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Некорректные числовые данные", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
+    }
+
+    private void showDeleteConfirmationDialog(String sku) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Удаление товара");
+        builder.setMessage("Вы уверены, что хотите удалить этот товар?");
+
+        builder.setPositiveButton("Удалить", (dialog, which) -> {
+            boolean success = databaseHelper.deleteProduct(sku);
+            if (success) {
+                Toast.makeText(this, "Товар удален", Toast.LENGTH_SHORT).show();
+                loadAllProducts();
+                updateBadgeCounts();
+            } else {
+                Toast.makeText(this, "Ошибка при удалении", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
     }
 
     private int getStockColor(int stock, int minStock) {

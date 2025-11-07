@@ -162,6 +162,7 @@ public class DashboardActivity extends AppCompatActivity {
         switch (navItem) {
             case "home":
                 setNavActive(navHome);
+                // Уже на главной, ничего не делаем
                 break;
             case "orders":
                 setNavActive(navOrders);
@@ -169,7 +170,9 @@ public class DashboardActivity extends AppCompatActivity {
                 break;
             case "products":
                 setNavActive(navProducts);
-                switchTab("products");
+                // ПЕРЕХОДИМ НА ProductsActivity
+                startActivity(new Intent(DashboardActivity.this, ProductsActivity.class));
+                finish(); // Закрываем текущую активити
                 break;
             case "analytics":
                 setNavActive(navAnalytics);
