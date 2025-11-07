@@ -12,4 +12,7 @@
     <color name="status_processing">#fef3c7</color>
     <color name="status_delivered">#dcfce7</color>
     <color name="status_overdue">#fee2e2</color>
+    <color name="stock_critical">#ef4444</color>
+    <color name="stock_low">#f59e0b</color>
+    <color name="stock_normal">#16a34a</color>
 </resources>

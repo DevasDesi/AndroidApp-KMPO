@@ -1,11 +1,18 @@
 package com.example.storage_control;
 
+import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+
+import java.util.Locale;
 
 public class DashboardActivity extends AppCompatActivity {
 
@@ -78,16 +85,40 @@ public class DashboardActivity extends AppCompatActivity {
         findViewById(R.id.viewAllButton).setOnClickListener(v -> showAllOrders());
     }
 
+    private void openOrderDetails(String orderId, String customerName, double amount, String status) {
+        // Получаем ID заказа из базы данных
+        Cursor cursor = databaseHelper.getAllOrders();
+        int actualOrderId = -1;
+
+        if (cursor.moveToFirst()) {
+            do {
+                String currentOrderId = cursor.getString(cursor.getColumnIndexOrThrow("order_id"));
+                if (currentOrderId.equals(orderId)) {
+                    actualOrderId = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                    break;
+                }
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+
+        if (actualOrderId != -1) {
+            Intent intent = new Intent(this, OrderDetailActivity.class);
+            intent.putExtra("order_id", actualOrderId);
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "Ошибка: заказ не найден", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void updateBadgeCounts() {
         // Реальные счетчики из базы данных
         int overdueCount = databaseHelper.getOrdersCountByStatus("overdue");
         int processingCount = databaseHelper.getOrdersCountByStatus("processing");
+        int criticalStockCount = databaseHelper.getCriticalStockCount();
 
         overdueOrdersCount.setText(String.valueOf(overdueCount));
         pendingOrdersCount.setText(String.valueOf(processingCount));
-
-        // Для критического остатка пока заглушка
-        criticalStockCount.setText("1");
+        this.criticalStockCount.setText(String.valueOf(criticalStockCount));
     }
 
     private void switchTab(String tab) {
@@ -131,7 +162,6 @@ public class DashboardActivity extends AppCompatActivity {
         switch (navItem) {
             case "home":
                 setNavActive(navHome);
-                Toast.makeText(this, "Уже на главной", Toast.LENGTH_SHORT).show();
                 break;
             case "orders":
                 setNavActive(navOrders);
@@ -194,26 +224,31 @@ public class DashboardActivity extends AppCompatActivity {
         switchTab("orders");
         Cursor cursor = databaseHelper.getOrdersByStatus("overdue");
         displayOrders(cursor, "Просроченные заказы");
-        Toast.makeText(this, "Показаны просроченные заказы", Toast.LENGTH_SHORT).show();
     }
 
     private void showCriticalStock() {
         switchTab("products");
-        Toast.makeText(this, "Показаны товары с критическим остатком", Toast.LENGTH_SHORT).show();
-        // Здесь будет логика для товаров
+
+        // Показываем товары с критическим остатком
+        Cursor cursor = databaseHelper.getCriticalStockProducts();
+        if (cursor.getCount() > 0) {
+            displayProducts(cursor);
+            TextView sectionTitle = findViewById(R.id.sectionTitle);
+            sectionTitle.setText("Товары с критическим остатком");
+        } else {
+            showEmptyProductsState();
+        }
     }
 
     private void showPendingOrders() {
         switchTab("orders");
         Cursor cursor = databaseHelper.getOrdersByStatus("processing");
         displayOrders(cursor, "Заказы в обработке");
-        Toast.makeText(this, "Показаны заказы в обработке", Toast.LENGTH_SHORT).show();
     }
 
     private void showAllOrders() {
         Cursor cursor = databaseHelper.getAllOrders();
         displayOrders(cursor, "Все заказы");
-        Toast.makeText(this, "Показаны все заказы", Toast.LENGTH_SHORT).show();
     }
 
     private void loadRecentOrders() {
@@ -252,8 +287,6 @@ public class DashboardActivity extends AppCompatActivity {
         cursor.close();
     }
 
-
-
     private View createOrderCard(String orderId, String customerName, double amount, String status) {
         // Создаем карточку программно
         LinearLayout card = new LinearLayout(this);
@@ -284,7 +317,7 @@ public class DashboardActivity extends AppCompatActivity {
         orderIdView.setText(orderId);
         orderIdView.setTextColor(ContextCompat.getColor(this, R.color.gray_dark));
         orderIdView.setTextSize(16);
-        orderIdView.setTypeface(null, android.graphics.Typeface.BOLD);
+        orderIdView.setTypeface(null, Typeface.BOLD);
 
         TextView statusView = new TextView(this);
         statusView.setLayoutParams(new LinearLayout.LayoutParams(
@@ -317,23 +350,26 @@ public class DashboardActivity extends AppCompatActivity {
         customerView.setText(customerName);
         customerView.setTextColor(ContextCompat.getColor(this, R.color.gray_dark));
         customerView.setTextSize(14);
-        customerView.setTypeface(null, android.graphics.Typeface.BOLD);
+        customerView.setTypeface(null, Typeface.BOLD);
 
         TextView amountView = new TextView(this);
         amountView.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
-        amountView.setText(String.format("%d ₽", (int) amount));
+        amountView.setText(String.format(Locale.getDefault(), "%,d ₽", (int) amount));
         amountView.setTextColor(ContextCompat.getColor(this, R.color.purple_500));
         amountView.setTextSize(16);
-        amountView.setTypeface(null, android.graphics.Typeface.BOLD);
+        amountView.setTypeface(null, Typeface.BOLD);
 
         detailsRow.addView(customerView);
         detailsRow.addView(amountView);
 
         card.addView(headerRow);
         card.addView(detailsRow);
+        card.setOnClickListener(v -> {
+            openOrderDetails(orderId, customerName, amount, status);
+        });
 
         return card;
     }
@@ -360,22 +396,257 @@ public class DashboardActivity extends AppCompatActivity {
         return ContextCompat.getDrawable(this, color);
     }
 
+    // ==================== ФУНКЦИОНАЛ ТОВАРОВ ====================
+
     private void showProductsScreen() {
         emptyOrdersLayout.setVisibility(View.GONE);
         ordersContainer.setVisibility(View.VISIBLE);
         ordersContainer.removeAllViews();
 
+        // Заголовок
+        TextView sectionTitle = findViewById(R.id.sectionTitle);
+        sectionTitle.setText("Все товары");
+
+        // Кнопка добавления товара
+        Button addProductButton = new Button(this);
+        addProductButton.setText("+ Добавить товар");
+        addProductButton.setBackground(ContextCompat.getDrawable(this, R.drawable.button_background));
+        addProductButton.setTextColor(Color.WHITE);
+        addProductButton.setTextSize(16);
+        addProductButton.setPadding(32, 16, 32, 16);
+        addProductButton.setOnClickListener(v -> showAddProductDialog());
+
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        buttonParams.setMargins(0, 0, 0, 16);
+        addProductButton.setLayoutParams(buttonParams);
+
+        ordersContainer.addView(addProductButton);
+
+        // Загружаем товары из БД
+        loadProducts();
+    }
+
+    private void loadProducts() {
+        Cursor cursor = databaseHelper.getAllProducts();
+        if (cursor.getCount() > 0) {
+            displayProducts(cursor);
+        } else {
+            showEmptyProductsState();
+        }
+    }
+
+    private void displayProducts(Cursor cursor) {
+        if (cursor.moveToFirst()) {
+            do {
+                String productName = cursor.getString(cursor.getColumnIndexOrThrow("product_name"));
+                String sku = cursor.getString(cursor.getColumnIndexOrThrow("sku"));
+                double price = cursor.getDouble(cursor.getColumnIndexOrThrow("price"));
+                int stock = cursor.getInt(cursor.getColumnIndexOrThrow("stock_quantity"));
+                int minStock = cursor.getInt(cursor.getColumnIndexOrThrow("min_stock"));
+                String category = cursor.getString(cursor.getColumnIndexOrThrow("category"));
+
+                View productCard = createProductCard(productName, sku, price, stock, minStock, category);
+                ordersContainer.addView(productCard);
+
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+    }
+
+    private View createProductCard(String productName, String sku, double price,
+                                   int stock, int minStock, String category) {
+        // Создаем карточку товара
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(ContextCompat.getDrawable(this, R.drawable.order_card_background));
+        card.setPadding(24, 24, 24, 24);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 0, 0, 16);
+        card.setLayoutParams(params);
+
+        // Название товара и артикул
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView nameView = new TextView(this);
+        nameView.setLayoutParams(new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1
+        ));
+        nameView.setText(productName);
+        nameView.setTextColor(ContextCompat.getColor(this, R.color.gray_dark));
+        nameView.setTextSize(16);
+        nameView.setTypeface(null, Typeface.BOLD);
+
+        TextView skuView = new TextView(this);
+        skuView.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        skuView.setText(sku);
+        skuView.setTextColor(ContextCompat.getColor(this, R.color.gray_dark));
+        skuView.setTextSize(12);
+
+        headerRow.addView(nameView);
+        headerRow.addView(skuView);
+
+        // Категория
+        TextView categoryView = new TextView(this);
+        categoryView.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        categoryView.setText(category);
+        categoryView.setTextColor(ContextCompat.getColor(this, R.color.purple_500));
+        categoryView.setTextSize(12);
+        categoryView.setPadding(0, 8, 0, 0);
+
+        // Цена и остаток
+        LinearLayout detailsRow = new LinearLayout(this);
+        detailsRow.setOrientation(LinearLayout.HORIZONTAL);
+        detailsRow.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        detailsRow.setPadding(0, 12, 0, 0);
+
+        TextView priceView = new TextView(this);
+        priceView.setLayoutParams(new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1
+        ));
+        priceView.setText(String.format(Locale.getDefault(), "%,d ₽", (int) price));
+        priceView.setTextColor(ContextCompat.getColor(this, R.color.gray_dark));
+        priceView.setTextSize(14);
+        priceView.setTypeface(null, Typeface.BOLD);
+
+        TextView stockView = new TextView(this);
+        stockView.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        stockView.setText("Остаток: " + stock + " шт.");
+        stockView.setTextColor(getStockColor(stock, minStock));
+        stockView.setTextSize(14);
+        stockView.setTypeface(null, Typeface.BOLD);
+
+        detailsRow.addView(priceView);
+        detailsRow.addView(stockView);
+
+        card.addView(headerRow);
+        card.addView(categoryView);
+        card.addView(detailsRow);
+
+        return card;
+    }
+
+    private int getStockColor(int stock, int minStock) {
+        if (stock == 0) {
+            return ContextCompat.getColor(this, R.color.stock_critical); // Красный
+        } else if (stock <= minStock) {
+            return ContextCompat.getColor(this, R.color.stock_low); // Желтый
+        } else {
+            return ContextCompat.getColor(this, R.color.stock_normal); // Зеленый
+        }
+    }
+
+    private void showEmptyProductsState() {
         TextView message = new TextView(this);
-        message.setText("Раздел 'Товары' в разработке");
-        message.setTextSize(18);
+        message.setText("Товары не найдены\nНажмите 'Добавить товар' для начала");
+        message.setTextSize(16);
         message.setTextColor(ContextCompat.getColor(this, R.color.gray_dark));
-        message.setGravity(android.view.Gravity.CENTER);
+        message.setGravity(Gravity.CENTER);
         message.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.MATCH_PARENT
         ));
 
         ordersContainer.addView(message);
+    }
+
+
+
+    private void showAddProductDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Добавить товар");
+
+        // Создаем layout для диалога
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(32, 32, 32, 32);
+
+        final EditText nameInput = new EditText(this);
+        nameInput.setHint("Название товара");
+        nameInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        nameInput.setPadding(16, 16, 16, 16);
+        layout.addView(nameInput);
+
+        final EditText skuInput = new EditText(this);
+        skuInput.setHint("Артикул (SKU)");
+        skuInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        skuInput.setPadding(16, 16, 16, 16);
+        layout.addView(skuInput);
+
+        final EditText priceInput = new EditText(this);
+        priceInput.setHint("Цена");
+        priceInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        priceInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        priceInput.setPadding(16, 16, 16, 16);
+        layout.addView(priceInput);
+
+        final EditText stockInput = new EditText(this);
+        stockInput.setHint("Количество на складе");
+        stockInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        stockInput.setBackground(ContextCompat.getDrawable(this, R.drawable.edittext_background));
+        stockInput.setPadding(16, 16, 16, 16);
+        layout.addView(stockInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Добавить", (dialog, which) -> {
+            String name = nameInput.getText().toString().trim();
+            String sku = skuInput.getText().toString().trim();
+            String priceStr = priceInput.getText().toString().trim();
+            String stockStr = stockInput.getText().toString().trim();
+
+            if (name.isEmpty() || sku.isEmpty() || priceStr.isEmpty() || stockStr.isEmpty()) {
+                Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            try {
+                double price = Double.parseDouble(priceStr);
+                int stock = Integer.parseInt(stockStr);
+                int minStock = Math.max(1, stock / 4); // Автоматически устанавливаем мин. запас
+
+                boolean success = databaseHelper.addProduct(name, sku, price, stock, minStock, "Разное", "");
+                if (success) {
+                    Toast.makeText(this, "Товар добавлен", Toast.LENGTH_SHORT).show();
+                    // Обновляем список товаров
+                    showProductsScreen();
+                } else {
+                    Toast.makeText(this, "Ошибка при добавлении", Toast.LENGTH_SHORT).show();
+                }
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Некорректные данные", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
     }
 
     private void showAnalyticsScreen() {
@@ -387,7 +658,7 @@ public class DashboardActivity extends AppCompatActivity {
         message.setText("Раздел 'Аналитика' в разработке");
         message.setTextSize(18);
         message.setTextColor(ContextCompat.getColor(this, R.color.gray_dark));
-        message.setGravity(android.view.Gravity.CENTER);
+        message.setGravity(Gravity.CENTER);
         message.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.MATCH_PARENT
@@ -395,6 +666,8 @@ public class DashboardActivity extends AppCompatActivity {
 
         ordersContainer.addView(message);
     }
+
+
 
     private void showEmptyState() {
         emptyOrdersLayout.setVisibility(View.VISIBLE);

@@ -27,6 +27,14 @@
         <activity
             android:name=".DashboardActivity"
             android:exported="false" />
+        <activity
+            android:name=".OrderDetailActivity"
+            android:label="Детали заказа"
+            android:parentActivityName=".DashboardActivity" />
+        <activity
+            android:name=".EditOrderActivity"
+            android:label="Редактирование заказа"
+            android:parentActivityName=".OrderDetailActivity" />
 
     </application>
 </manifest>
