@@ -1,6 +1,7 @@
 package com.example.storage_control;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -21,24 +22,54 @@ public class ProductsActivity extends AppCompatActivity {
     private TextView criticalStockCount, lowStockCount, totalProductsCount;
     private TextView tabAllProducts, tabCriticalStock, tabLowStock, tabByCategory;
     private TextView productsSectionTitle;
-    private LinearLayout emptyProductsLayout, productsContainer;
+    private LinearLayout emptyProductsLayout, productsContainer, emptyView;
     private Button addProductButton;
-    private View navHome, navOrders, navProducts, navAnalytics, navSettings;
+    private View navHome, navOrders, navProducts, navAnalytics, navProfile;
     private LinearLayout criticalStockBadge, lowStockBadge, totalProductsBadge;
 
     private DatabaseHelper databaseHelper;
 
-    @Override
+    private String userRole;
+
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_products);
 
         databaseHelper = new DatabaseHelper(this);
+
         initViews();
+        loadUserRole();
+
+        // ================
+        // ROLE REDIRECT
+        // ================
+        if (!userRole.equals("products_manager")) {
+
+            if (userRole.equals("orders_manager")) {
+                startActivity(new Intent(this, DashboardActivity.class));
+                finish();
+                return;
+            }
+
+            if (userRole.equals("analytics_manager")) {
+                startActivity(new Intent(this, AnalyticsActivity.class));
+                finish();
+                return;
+            }
+
+            Toast.makeText(this, "Ошибка роли", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        setupNavigation();
         setupClickListeners();
-        updateBadgeCounts();
-        loadAllProducts();
+        loadProducts();
+        highlightActive(navProducts);
     }
+
+
 
     private void initViews() {
         // Бейджи счетчиков
@@ -70,8 +101,155 @@ public class ProductsActivity extends AppCompatActivity {
         navOrders = findViewById(R.id.navOrders);
         navProducts = findViewById(R.id.navProducts);
         navAnalytics = findViewById(R.id.navAnalytics);
-        navSettings = findViewById(R.id.navSettings);
+        navProfile = findViewById(R.id.navProfile);
     }
+
+    private void loadUserRole() {
+        SharedPreferences prefs = getSharedPreferences("UserData", MODE_PRIVATE);
+        userRole = prefs.getString("role", "unknown");
+    }
+
+    private void setupNavigation() {
+
+        navHome.setOnClickListener(v -> {
+            Toast.makeText(this, "Доступ запрещён", Toast.LENGTH_SHORT).show();
+            resetNav();
+            highlightActive(navProducts);
+        });
+
+        navOrders.setOnClickListener(v -> {
+            Toast.makeText(this, "Доступ запрещён", Toast.LENGTH_SHORT).show();
+            resetNav();
+            highlightActive(navProducts);
+        });
+
+        navProducts.setOnClickListener(v -> {
+            resetNav();
+            highlightActive(navProducts);
+            loadProducts();
+        });
+
+        navAnalytics.setOnClickListener(v -> {
+            Toast.makeText(this, "Доступ запрещён", Toast.LENGTH_SHORT).show();
+            resetNav();
+            highlightActive(navProducts);
+        });
+
+        navProfile.setOnClickListener(v -> {
+            resetNav();
+            highlightActive(navProfile);
+            startActivity(new Intent(this, ProfileActivity.class));
+        });
+    }
+
+    private void loadProducts() {
+        Cursor cursor = databaseHelper.getAllProducts();
+
+        productsContainer.removeAllViews();
+
+        if (cursor.getCount() == 0) {
+            emptyProductsLayout.setVisibility(View.VISIBLE);
+            productsContainer.setVisibility(View.GONE);
+            cursor.close();
+            return;
+        }
+
+        emptyProductsLayout.setVisibility(View.GONE);
+        productsContainer.setVisibility(View.VISIBLE);
+
+        if (cursor.moveToFirst()) {
+            do {
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("product_name"));
+                String sku = cursor.getString(cursor.getColumnIndexOrThrow("sku"));
+
+                // ✔ правильные названия колонок
+                int stock = cursor.getInt(cursor.getColumnIndexOrThrow("stock_quantity"));
+                int critical = cursor.getInt(cursor.getColumnIndexOrThrow("min_stock"));
+
+                View card = createProductCard(name, sku, stock, critical);
+                productsContainer.addView(card);
+
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+    }
+
+
+    private View createProductCard(String name, String sku, int stock, int critical) {
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(32, 32, 32, 32);
+        card.setBackground(ContextCompat.getDrawable(this, R.drawable.order_card_background));
+
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        p.setMargins(0, 0, 0, 16);
+        card.setLayoutParams(p);
+
+        TextView t1 = new TextView(this);
+        t1.setText(name);
+        t1.setTextSize(18);
+        t1.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        TextView t2 = new TextView(this);
+        t2.setText("Артикул: " + sku);
+        t2.setTextSize(14);
+
+        TextView t3 = new TextView(this);
+        t3.setText("Остаток: " + stock);
+
+        if (stock <= critical) {
+            t3.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+        }
+
+        card.addView(t1);
+        card.addView(t2);
+        card.addView(t3);
+
+        card.setOnClickListener(v -> openProductDetails(sku));
+
+        return card;
+    }
+
+    private void openProductDetails(String sku) {
+        Intent intent = new Intent(this, ProductDetailActivity.class);
+        intent.putExtra("sku", sku);
+        startActivity(intent);
+    }
+
+    private void resetNav() {
+        int gray = ContextCompat.getColor(this, R.color.gray_dark);
+
+        setNavColor(navHome, gray);
+        setNavColor(navOrders, gray);
+        setNavColor(navProducts, gray);
+        setNavColor(navAnalytics, gray);
+        setNavColor(navProfile, gray);
+
+        navHome.setAlpha(0.5f);
+        navOrders.setAlpha(0.5f);
+        navProducts.setAlpha(0.5f);
+        navAnalytics.setAlpha(0.5f);
+        navProfile.setAlpha(0.5f);
+    }
+
+    private void setNavColor(View nav, int color) {
+        ImageView icon = (ImageView) ((LinearLayout) nav).getChildAt(0);
+        TextView text = (TextView) ((LinearLayout) nav).getChildAt(1);
+        icon.setColorFilter(color);
+        text.setTextColor(color);
+    }
+
+    private void highlightActive(View v) {
+        v.setAlpha(1f);
+        int activeColor = ContextCompat.getColor(this, R.color.black);
+        setNavColor(v, activeColor);
+    }
+
 
     private void setupClickListeners() {
         // Табы
@@ -93,7 +271,7 @@ public class ProductsActivity extends AppCompatActivity {
         navOrders.setOnClickListener(v -> switchNavigation("orders"));
         navProducts.setOnClickListener(v -> switchNavigation("products"));
         navAnalytics.setOnClickListener(v -> switchNavigation("analytics"));
-        navSettings.setOnClickListener(v -> switchNavigation("settings"));
+        navProfile.setOnClickListener(v -> switchNavigation("settings"));
     }
 
     private void switchTab(String tab) {
@@ -152,23 +330,47 @@ public class ProductsActivity extends AppCompatActivity {
     }
 
     private void switchNavigation(String navItem) {
+
+        // Получаем текущую роль
+        String role = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+                .getString("role", "none");
+
         switch (navItem) {
+
             case "home":
                 startActivity(new Intent(this, DashboardActivity.class));
                 finish();
                 break;
+
             case "orders":
+                if (!role.equals("orders_manager")) {
+                    Toast.makeText(this, "Раздел заказов недоступен для вашей роли", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 startActivity(new Intent(this, DashboardActivity.class));
                 finish();
                 break;
+
             case "products":
-                // Уже на товарах
+                if (!role.equals("products_manager")) {
+                    Toast.makeText(this, "Раздел товаров недоступен для вашей роли", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                // Мы уже здесь
                 break;
+
             case "analytics":
-                Toast.makeText(this, "Аналитика - в разработке", Toast.LENGTH_SHORT).show();
+                if (!role.equals("analytics_manager")) {
+                    Toast.makeText(this, "Раздел аналитики недоступен для вашей роли", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                startActivity(new Intent(this, AnalyticsActivity.class));
+                finish();
                 break;
-            case "settings":
-                Toast.makeText(this, "Настройки - в разработке", Toast.LENGTH_SHORT).show();
+
+            case "settings": // navProfile
+                Intent intent = new Intent(this, ProfileActivity.class);
+                startActivity(intent);
                 break;
         }
     }

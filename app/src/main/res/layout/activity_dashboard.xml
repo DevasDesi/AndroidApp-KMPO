@@ -165,51 +165,6 @@
 
     </LinearLayout>
 
-    <!-- Табы -->
-    <LinearLayout
-        android:id="@+id/tabsLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="#ffffff"
-        android:weightSum="3">
-
-        <TextView
-            android:id="@+id/tabOrders"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Заказы"
-            android:textAlignment="center"
-            android:padding="16dp"
-            android:background="@drawable/tab_background_selected"
-            android:textColor="#4f46e5"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tabProducts"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Товары"
-            android:textAlignment="center"
-            android:padding="16dp"
-            android:background="@drawable/tab_background"
-            android:textColor="#94a3b8" />
-
-        <TextView
-            android:id="@+id/tabAnalytics"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Аналитика"
-            android:textAlignment="center"
-            android:padding="16dp"
-            android:background="@drawable/tab_background"
-            android:textColor="#94a3b8" />
-
-    </LinearLayout>
-
     <!-- Контент -->
     <ScrollView
         android:layout_width="match_parent"
@@ -414,7 +369,7 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/navSettings"
+            android:id="@+id/navProfile"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -425,13 +380,13 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_preferences"
-            app:tint="#94a3b8" />
+                android:src="@android:drawable/ic_menu_myplaces"
+                app:tint="#94a3b8" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Настройки"
+                android:text="Профиль"
                 android:textColor="#94a3b8"
                 android:textSize="11sp"
                 android:layout_marginTop="4dp" />

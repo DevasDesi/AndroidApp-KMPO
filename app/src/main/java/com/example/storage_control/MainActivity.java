@@ -1,6 +1,7 @@
 package com.example.storage_control;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.*;
@@ -123,17 +124,62 @@ public class MainActivity extends AppCompatActivity {
         String password = loginPassword.getText().toString().trim();
 
         if (email.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Введите email и пароль", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (databaseHelper.checkUser(email, password)) {
-            Toast.makeText(this, "Вход выполнен!", Toast.LENGTH_SHORT).show();
-            // Переход на главный экран
-            startActivity(new Intent(this, DashboardActivity.class));
+
+            android.database.Cursor cursor = databaseHelper.getUserByEmail(email);
+
+            String name = "Неизвестно";
+            String role = "user";
+
+            if (cursor != null && cursor.moveToFirst()) {
+                int idxName = cursor.getColumnIndex("name");
+                int idxRole = cursor.getColumnIndex("role");
+
+                if (idxName != -1) name = cursor.getString(idxName);
+                if (idxRole != -1) role = cursor.getString(idxRole);
+
+                cursor.close();
+            }
+
+            // Сохраняем данные
+            SharedPreferences prefs = getSharedPreferences("UserData", MODE_PRIVATE);
+            prefs.edit()
+                    .putString("name", name)
+                    .putString("email", email)
+                    .putString("role", role)
+                    .apply();
+
+            // Перенаправление по роли
+            Intent intent;
+
+            switch (role) {
+                case "orders_manager":
+                    intent = new Intent(MainActivity.this, DashboardActivity.class);
+                    break;
+
+                case "products_manager":
+                    intent = new Intent(MainActivity.this, ProductsActivity.class);
+                    break;
+
+                case "analytics_manager":
+                    intent = new Intent(MainActivity.this, AnalyticsActivity.class);
+                    break;
+
+                default:
+                    Toast.makeText(this, "Неизвестная роль", Toast.LENGTH_SHORT).show();
+                    return;
+            }
+
+            startActivity(intent);
             finish();
+
         } else {
             Toast.makeText(this, "Неверный email или пароль", Toast.LENGTH_SHORT).show();
         }
     }
+
 }

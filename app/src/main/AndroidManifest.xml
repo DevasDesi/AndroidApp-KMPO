@@ -36,6 +36,12 @@
             android:label="Редактирование заказа"
             android:parentActivityName=".OrderDetailActivity" />
 
+        <activity android:name=".AnalyticsActivity" />
+        <activity android:name=".ProfileActivity" />
+        <activity android:name=".ProductDetailActivity" />
+        <activity android:name=".AddProductActivity" />
+
+
         <!-- ДОБАВЬТЕ ЭТУ ACTIVITY -->
         <activity
             android:name=".ProductsActivity"

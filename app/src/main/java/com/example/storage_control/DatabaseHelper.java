@@ -9,7 +9,7 @@ import android.util.Log;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "OrderManager.db";
-    private static final int DATABASE_VERSION = 4; // Увеличиваем версию!
+    private static final int DATABASE_VERSION = 5; // Увеличиваем версию!
 
     // Таблица пользователей
     private static final String TABLE_USERS = "users";
@@ -51,9 +51,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + COLUMN_NAME + " TEXT,"
                 + COLUMN_EMAIL + " TEXT UNIQUE,"
-                + COLUMN_PASSWORD + " TEXT"
+                + COLUMN_PASSWORD + " TEXT,"
+                + "role TEXT"
                 + ")";
         db.execSQL(createUserTable);
+        addDefaultUsers(db);
         Log.d("DatabaseHelper", "Таблица users создана");
 
         // Создаем таблицу заказов с новыми полями
@@ -90,6 +92,43 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Log.d("DatabaseHelper", "Тестовые данные добавлены");
         insertSampleProducts(db);
     }
+
+    private void addDefaultUsers(SQLiteDatabase db) {
+        insertUserIfNotExists(db, "Order Manager", "order@mail.com", "test", "orders_manager");
+        insertUserIfNotExists(db, "Product Manager", "product@mail.com", "test", "products_manager");
+        insertUserIfNotExists(db, "Analytics Manager", "analytic@mail.com", "test", "analytics_manager");
+    }
+
+    private void insertUserIfNotExists(SQLiteDatabase db, String name, String email, String password, String role) {
+        Cursor cursor = db.rawQuery(
+                "SELECT COUNT(*) FROM " + TABLE_USERS + " WHERE " + COLUMN_EMAIL + " = ?",
+                new String[]{email}
+        );
+
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+
+        if (count == 0) {
+            ContentValues values = new ContentValues();
+            values.put(COLUMN_NAME, name);
+            values.put(COLUMN_EMAIL, email);
+            values.put(COLUMN_PASSWORD, password);
+            values.put("role", role);
+
+            db.insert(TABLE_USERS, null, values);
+        }
+    }
+
+    // Получить данные пользователя по email
+    public Cursor getUserByEmail(String email) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String[] columns = {COLUMN_NAME, COLUMN_EMAIL, "role"};
+        String selection = COLUMN_EMAIL + " = ?";
+        String[] selectionArgs = {email};
+        return db.query(TABLE_USERS, columns, selection, selectionArgs, null, null, null);
+    }
+
 
     private void insertSampleOrders(SQLiteDatabase db) {
         // Тестовые заказы с полной информацией
@@ -164,6 +203,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_ORDERS);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_PRODUCTS);
+        db.execSQL("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
         onCreate(db);
     }
 
@@ -207,6 +247,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         return count > 0;
     }
+
+
+
 
     // ==================== МЕТОДЫ ДЛЯ ЗАКАЗОВ ====================
 
@@ -283,8 +326,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public Cursor getCriticalStockProducts() {
         SQLiteDatabase db = this.getReadableDatabase();
         String selection = COLUMN_STOCK_QUANTITY + " <= " + COLUMN_MIN_STOCK;
-        return db.query(TABLE_PRODUCTS, null, selection, null, null, null, COLUMN_STOCK_QUANTITY + " ASC");
+        return db.query(TABLE_PRODUCTS, null, selection, null, null, null,
+                COLUMN_STOCK_QUANTITY + " ASC");
     }
+
 
     // Получить количество товаров с критическим остатком
     public int getCriticalStockCount() {
@@ -354,15 +399,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public int getLowStockCount() {
         SQLiteDatabase db = this.getReadableDatabase();
-        String query = "SELECT COUNT(*) FROM " + TABLE_PRODUCTS + " WHERE " +
-                COLUMN_STOCK_QUANTITY + " > 0 AND " +
+        String query = "SELECT COUNT(*) FROM " + TABLE_PRODUCTS +
+                " WHERE " + COLUMN_STOCK_QUANTITY + " > 0 AND " +
                 COLUMN_STOCK_QUANTITY + " <= " + COLUMN_MIN_STOCK;
+
         Cursor cursor = db.rawQuery(query, null);
         cursor.moveToFirst();
         int count = cursor.getInt(0);
         cursor.close();
         return count;
     }
+
 
     // Получить общее количество товаров
     public int getTotalProductsCount() {
@@ -380,8 +427,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
         String selection = COLUMN_STOCK_QUANTITY + " > 0 AND " +
                 COLUMN_STOCK_QUANTITY + " <= " + COLUMN_MIN_STOCK;
-        return db.query(TABLE_PRODUCTS, null, selection, null, null, null, COLUMN_STOCK_QUANTITY + " ASC");
+
+        return db.query(TABLE_PRODUCTS, null, selection, null, null, null,
+                COLUMN_STOCK_QUANTITY + " ASC");
     }
+
 
     public Cursor getProductBySku(String sku) {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -439,5 +489,37 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public String getDatabasePath() {
         return getReadableDatabase().getPath();
     }
+
+    public int getOrdersCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT COUNT(*) FROM orders", null);
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+        return count;
+    }
+
+    public int getProductsCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT COUNT(*) FROM products", null);
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+        return count;
+    }
+
+    public int getCriticalProductsCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT COUNT(*) FROM " + TABLE_PRODUCTS +
+                " WHERE " + COLUMN_STOCK_QUANTITY + " <= " + COLUMN_MIN_STOCK;
+        Cursor cursor = db.rawQuery(query, null);
+
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+        return count;
+    }
+
+
 
 }

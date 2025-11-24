@@ -425,7 +425,7 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/navSettings"
+            android:id="@+id/navProfile"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -436,18 +436,18 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_preferences"
+                android:src="@android:drawable/ic_menu_myplaces"
                 android:tint="#94a3b8" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Настройки"
+                android:text="Профиль"
                 android:textColor="#94a3b8"
                 android:textSize="11sp"
                 android:layout_marginTop="4dp" />
-
         </LinearLayout>
+
 
     </LinearLayout>
 

@@ -15,4 +15,5 @@
     <color name="stock_critical">#ef4444</color>
     <color name="stock_low">#f59e0b</color>
     <color name="stock_normal">#16a34a</color>
+    <color name="light_gray">#DDDDDD</color>
 </resources>
