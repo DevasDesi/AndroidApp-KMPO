@@ -7,6 +7,9 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "OrderManager.db";
     private static final int DATABASE_VERSION = 5; // Увеличиваем версию!
@@ -126,6 +129,54 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return revenue;
     }
 
+    // Получить доходы по месяцам
+    public Map<String, Double> getMonthlyRevenue() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Map<String, Double> monthlyRevenue = new LinkedHashMap<>();
+
+        // Запрос для группировки по месяцам
+        String query = "SELECT strftime('%Y-%m', " + COLUMN_DATE + ") as month, " +
+                "SUM(" + COLUMN_AMOUNT + ") as revenue " +
+                "FROM " + TABLE_ORDERS + " " +
+                "WHERE " + COLUMN_STATUS + " = 'delivered' " +
+                "GROUP BY month " +
+                "ORDER BY month DESC " +
+                "LIMIT 6"; // Последние 6 месяцев
+
+        Cursor cursor = db.rawQuery(query, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                String month = cursor.getString(cursor.getColumnIndexOrThrow("month"));
+                double revenue = cursor.getDouble(cursor.getColumnIndexOrThrow("revenue"));
+
+                // Форматируем название месяца
+                String formattedMonth = formatMonth(month);
+                monthlyRevenue.put(formattedMonth, revenue);
+
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+
+        return monthlyRevenue;
+    }
+
+    // Форматирование названия месяца
+    private String formatMonth(String month) {
+        try {
+            String[] parts = month.split("-");
+            int year = Integer.parseInt(parts[0]);
+            int monthNum = Integer.parseInt(parts[1]);
+
+            String[] monthNames = {"Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                    "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"};
+
+            return monthNames[monthNum - 1] + " " + year;
+        } catch (Exception e) {
+            return month;
+        }
+    }
+
     private void insertUserIfNotExists(SQLiteDatabase db, String name, String email, String password, String role) {
         Cursor cursor = db.rawQuery(
                 "SELECT COUNT(*) FROM " + TABLE_USERS + " WHERE " + COLUMN_EMAIL + " = ?",
@@ -164,6 +215,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "Ноутбук ASUS - 1 шт.\nМышь беспроводная - 1 шт.",
                 "2024-01-15", "2024-01-20");
 
+
         addOrder(db, "ORD-2875", "Петрова Е.", "+7 (999) 444-55-66",
                 "г. Москва, пр. Мира, д. 25, кв. 12", 8560, "processing",
                 "Смартфон Samsung - 1 шт.\nЧехол - 1 шт.",
@@ -173,6 +225,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "г. Москва, ул. Пушкина, д. 15, кв. 8", 21350, "delivered",
                 "Телевизор LG - 1 шт.\nКронштейн - 1 шт.",
                 "2024-01-13", "2024-01-16");
+
+        addOrder(db, "ORD-2874", "Сидоров В.", "+7 (999) 777-88-99",
+                "г. Москва, ул. Пушкина, д. 15, кв. 8", 11350, "delivered",
+                "Телевизор LG - 1 шт.\nКронштейн - 1 шт.",
+                "2024-02-13", "2024-02-16");
+
+        addOrder(db, "ORD-2874", "Сидоров В.", "+7 (999) 777-88-99",
+                "г. Москва, ул. Пушкина, д. 15, кв. 8", 25350, "delivered",
+                "Телевизор LG - 1 шт.\nКронштейн - 1 шт.",
+                "2024-03-13", "2024-03-16");
 
         addOrder(db, "ORD-2873", "Козлов Д.", "+7 (999) 123-45-67",
                 "г. Москва, ул. Гагарина, д. 7, кв. 3", 12400, "overdue",
