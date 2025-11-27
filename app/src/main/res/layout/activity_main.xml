@@ -107,11 +107,28 @@
                 android:inputType="textPassword"
                 android:drawableEnd="@drawable/ic_lock" />
 
+            <!-- Выбор роли -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Выберите роль:"
+                android:textColor="@color/gray_dark"
+                android:textSize="14sp"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="5dp" />
+
+            <Spinner
+                android:id="@+id/roleSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/edittext_background" />
+
             <CheckBox
                 android:id="@+id/termsCheckbox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Я принимаю условия использования" />
+                android:text="Я принимаю условия использования"
+                android:layout_marginTop="10dp" />
 
             <Button
                 android:id="@+id/registerButton"

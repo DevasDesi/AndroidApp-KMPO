@@ -1,7 +1,6 @@
 package com.example.storage_control;
 
 import androidx.appcompat.app.AppCompatActivity;
-
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -12,7 +11,7 @@ import androidx.core.content.ContextCompat;
 
 public class AnalyticsActivity extends AppCompatActivity {
 
-    private TextView totalOrders, totalProducts, criticalCount;
+    private TextView totalOrders, totalProducts, criticalCount, completedOrdersRevenue;
     private DatabaseHelper db;
 
     private LinearLayout navHome, navOrders, navProducts, navAnalytics, navProfile;
@@ -57,6 +56,7 @@ public class AnalyticsActivity extends AppCompatActivity {
         totalOrders = findViewById(R.id.totalOrders);
         totalProducts = findViewById(R.id.totalProducts);
         criticalCount = findViewById(R.id.criticalCount);
+        completedOrdersRevenue = findViewById(R.id.completedOrdersRevenue);
 
         navHome = findViewById(R.id.navHome);
         navOrders = findViewById(R.id.navOrders);
@@ -109,10 +109,12 @@ public class AnalyticsActivity extends AppCompatActivity {
         int ordersCount = db.getOrdersCount();
         int productsCount = db.getProductsCount();
         int critical = db.getCriticalProductsCount();
+        double revenue = db.getCompletedOrdersRevenue();
 
         totalOrders.setText(String.valueOf(ordersCount));
         totalProducts.setText(String.valueOf(productsCount));
         criticalCount.setText(String.valueOf(critical));
+        completedOrdersRevenue.setText(String.format("%.2f ₽", revenue));
     }
 
     private void resetNav() {

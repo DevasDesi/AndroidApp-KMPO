@@ -106,6 +106,32 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <!-- Карточка: доход от выполненных заказов -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/card_bg"
+                android:padding="16dp"
+                android:layout_marginBottom="12dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Доход от выполненных заказов"
+                    android:textColor="#475569"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/completedOrdersRevenue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 ₽"
+                    android:textSize="28sp"
+                    android:textColor="#16a34a"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
         </LinearLayout>
 
     </ScrollView>

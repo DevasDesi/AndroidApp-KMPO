@@ -99,6 +99,33 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         insertUserIfNotExists(db, "Analytics Manager", "analytic@mail.com", "test", "analytics_manager");
     }
 
+    // Регистрация пользователя с ролью
+    public boolean registerUserWithRole(String name, String email, String password, String role) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_NAME, name);
+        values.put(COLUMN_EMAIL, email);
+        values.put(COLUMN_PASSWORD, password);
+        values.put("role", role);
+
+        long result = db.insert(TABLE_USERS, null, values);
+        return result != -1;
+    }
+
+    // Получить сумму выполненных заказов
+    public double getCompletedOrdersRevenue() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT SUM(" + COLUMN_AMOUNT + ") FROM " + TABLE_ORDERS + " WHERE " + COLUMN_STATUS + " = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{"delivered"});
+
+        double revenue = 0;
+        if (cursor.moveToFirst()) {
+            revenue = cursor.getDouble(0);
+        }
+        cursor.close();
+        return revenue;
+    }
+
     private void insertUserIfNotExists(SQLiteDatabase db, String name, String email, String password, String role) {
         Cursor cursor = db.rawQuery(
                 "SELECT COUNT(*) FROM " + TABLE_USERS + " WHERE " + COLUMN_EMAIL + " = ?",

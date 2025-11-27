@@ -14,6 +14,7 @@ public class MainActivity extends AppCompatActivity {
     private CheckBox termsCheckbox;
     private LinearLayout loginForm, registerForm;
     private TextView loginTab, registerTab;
+    private Spinner roleSpinner;
 
     private DatabaseHelper databaseHelper;
 
@@ -24,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
 
         databaseHelper = new DatabaseHelper(this);
         initViews();
+        setupRoleSpinner();
         setupClickListeners();
     }
 
@@ -43,11 +45,29 @@ public class MainActivity extends AppCompatActivity {
         regConfirmPassword = findViewById(R.id.regConfirmPassword);
         termsCheckbox = findViewById(R.id.termsCheckbox);
         registerButton = findViewById(R.id.registerButton);
+        roleSpinner = findViewById(R.id.roleSpinner);
 
         // Поля входа
         loginEmail = findViewById(R.id.loginEmail);
         loginPassword = findViewById(R.id.loginPassword);
         loginButton = findViewById(R.id.loginButton);
+    }
+
+    private void setupRoleSpinner() {
+        // Роли для выбора
+        String[] roles = {
+                "Менеджер заказов",
+                "Менеджер товаров",
+                "Аналитик"
+        };
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                roles
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        roleSpinner.setAdapter(adapter);
     }
 
     private void setupClickListeners() {
@@ -85,6 +105,7 @@ public class MainActivity extends AppCompatActivity {
         String email = regEmail.getText().toString().trim();
         String password = regPassword.getText().toString().trim();
         String confirmPassword = regConfirmPassword.getText().toString().trim();
+        String selectedRole = roleSpinner.getSelectedItem().toString();
 
         // Валидация
         if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
@@ -108,15 +129,61 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        // Конвертация роли в системный формат
+        String systemRole = convertRoleToSystem(selectedRole);
+
         // Регистрация
-        if (databaseHelper.registerUser(name, email, password)) {
+        if (databaseHelper.registerUserWithRole(name, email, password, systemRole)) {
             Toast.makeText(this, "Регистрация успешна!", Toast.LENGTH_SHORT).show();
-            // Переход на главный экран
-            startActivity(new Intent(this, DashboardActivity.class));
-            finish();
+
+            // Сохраняем данные пользователя
+            SharedPreferences prefs = getSharedPreferences("UserData", MODE_PRIVATE);
+            prefs.edit()
+                    .putString("name", name)
+                    .putString("email", email)
+                    .putString("role", systemRole)
+                    .apply();
+
+            // Переход на соответствующий экран
+            redirectByRole(systemRole);
         } else {
             Toast.makeText(this, "Ошибка регистрации", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private String convertRoleToSystem(String selectedRole) {
+        switch (selectedRole) {
+            case "Менеджер заказов":
+                return "orders_manager";
+            case "Менеджер товаров":
+                return "products_manager";
+            case "Аналитик":
+                return "analytics_manager";
+            default:
+                return "user";
+        }
+    }
+
+    private void redirectByRole(String role) {
+        Intent intent;
+
+        switch (role) {
+            case "orders_manager":
+                intent = new Intent(MainActivity.this, DashboardActivity.class);
+                break;
+            case "products_manager":
+                intent = new Intent(MainActivity.this, ProductsActivity.class);
+                break;
+            case "analytics_manager":
+                intent = new Intent(MainActivity.this, AnalyticsActivity.class);
+                break;
+            default:
+                Toast.makeText(this, "Неизвестная роль", Toast.LENGTH_SHORT).show();
+                return;
+        }
+
+        startActivity(intent);
+        finish();
     }
 
     private void loginUser() {
@@ -154,32 +221,10 @@ public class MainActivity extends AppCompatActivity {
                     .apply();
 
             // Перенаправление по роли
-            Intent intent;
-
-            switch (role) {
-                case "orders_manager":
-                    intent = new Intent(MainActivity.this, DashboardActivity.class);
-                    break;
-
-                case "products_manager":
-                    intent = new Intent(MainActivity.this, ProductsActivity.class);
-                    break;
-
-                case "analytics_manager":
-                    intent = new Intent(MainActivity.this, AnalyticsActivity.class);
-                    break;
-
-                default:
-                    Toast.makeText(this, "Неизвестная роль", Toast.LENGTH_SHORT).show();
-                    return;
-            }
-
-            startActivity(intent);
-            finish();
+            redirectByRole(role);
 
         } else {
             Toast.makeText(this, "Неверный email или пароль", Toast.LENGTH_SHORT).show();
         }
     }
-
 }
